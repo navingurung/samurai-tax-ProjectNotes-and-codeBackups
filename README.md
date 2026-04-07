@@ -1,302 +1,756 @@
 ```javascript
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import axios from "axios";
-import { toast } from "sonner";
-import { X } from "lucide-react";
-
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import * as React from "react";
+import { exportToCSV, exportToXLSX } from "@/lib/export";
 import { STATUS, type Status } from "@/lib/constants/status";
-import { AccordionDemo } from "@/app/dashboard/refund/[id]/accordion";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
+  IconCircleCheckFilled,
+  IconLayoutColumns,
+  IconLoader,
+} from "@tabler/icons-react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type Row,
+  type SortingState,
+  type VisibilityState,
+} from "@tanstack/react-table";
+import { z } from "zod";
 
-type Refund = {
-  id: string;
-  status: Status;
-  created_at: string;
-  passport_no: string;
-  name: string;
-  nation: string;
-  birth_date: string;
-  land_status: string;
-  land_date: string;
-  email: string;
-  residence_country: string;
-  chinese_state: string;
-  total_tax: number;
-  total_received: number;
-  order_id: string;
-  request_body?: string;
-  response_body?: string;
-  delete_request_body?: string;
-  delete_response_body?: string;
-  deleted_at?: string;
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input"; // Added: search input
+
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
+  IconDownload,
+  IconFileSpreadsheet,
+  IconFileTypeCsv,
+} from "@tabler/icons-react";
+
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import Link from "next/link";
+
+import { schema } from "@/app/dashboard/page";
+// Create a separate component for the drag handle
+// function DragHandle({ id }: { id: number }) {
+//   const { attributes, listeners } = useSortable({
+//     id,
+//   });
+
+//   return (
+//     <Button
+//       {...attributes}
+//       {...listeners}
+//       variant="ghost"
+//       size="icon"
+//       className="text-muted-foreground size-7 hover:bg-transparent"
+//     >
+//       <IconGripVertical className="text-muted-foreground size-3" />
+//       <span className="sr-only">Drag to reorder</span>
+//     </Button>
+//   );
+// }
+
+// Added: reusable header button for sortable columns
+function SortableHeader({
+  column,
+  title,
+}: {
+  column: any;
+  title: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      className="h-auto px-0 font-medium hover:bg-transparent"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    >
+      {title}
+      <IconChevronDown className="ml-1 size-4" />
+    </Button>
+  );
+}
+
+// Added: custom search filter for multiple fields
+const globalSearchFilter: FilterFn<z.infer<typeof schema>> = (
+  row,
+  _columnId,
+  value,
+) => {
+  const keyword = String(value ?? "").toLowerCase().trim();
+  if (!keyword) return true;
+
+  const item = row.original;
+
+  return [
+    item.id,
+    item.shopName,
+    item.name,
+    item.nation,
+    item.status,
+    item.birthDate,
+  ]
+    .map((v) => String(v ?? "").toLowerCase())
+    .some((v) => v.includes(keyword));
 };
 
-type DeleteRefundResponse = {
-  success: boolean;
-  deleted_at: string;
-  delete_request_body?: string;
-  delete_response_body?: string;
-};
+const columns: ColumnDef<z.infer<typeof schema>>[] = [
+  // ── 選択用チェックボックス列 ─────────────────────────
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "id",
+    header: ({ column }) => <SortableHeader column={column} title="ID" />, // Added: sorting
+    enableHiding: false,
+  },
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <SortableHeader column={column} title="取引作成日" />
+    ), // Added: sorting
+    cell: ({ getValue }) => {
+      const date = new Date(getValue() as string);
+      const JST_date = new Date(date.getTime() + 9 * 60 * 60 * 1000); // JSTはUTC+9時間
+      return (
+        <span>
+          {JST_date.getFullYear()}/{JST_date.getMonth() + 1}/
+          {JST_date.getDate()} {JST_date.getHours()}:
+          {JST_date.getMinutes().toString().padStart(2, "0")}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "shopName",
+    header: "店舗名",
+  },
+  {
+    accessorKey: "name",
+    header: "氏名",
+  },
+  {
+    accessorKey: "nation",
+    header: ({ column }) => <SortableHeader column={column} title="国籍" />, // Added: sorting
+  },
+  {
+    accessorKey: "birthDate",
+    header: ({ column }) => (
+      <SortableHeader column={column} title="生年月日" />
+    ), // Added: sorting
+    cell: ({ getValue }) => {
+      // YYYYMMDDをYYYY/MM/DDに変換して表示
+      const value = getValue() as string;
+      if (value.length === 8) {
+        return (
+          <span>
+            {value.slice(0, 4)}/{value.slice(4, 6)}/{value.slice(6, 8)}
+          </span>
+        );
+      }
+      return <span>{value}</span>;
+    },
+  },
+  // {
+  //   accessorKey: "email",
+  //   header: "メールアドレス",
+  // },
+  {
+    accessorKey: "totalAmount",
+    header: "合計金額",
+  },
+  {
+    accessorKey: "totalTax",
+    header: ({ column }) => <SortableHeader column={column} title="合計税額" />, // Added: sorting
+  },
 
-// fake API function
-const deleteRefund = async (id: string): Promise<DeleteRefundResponse> => {
-  try {
-    // fake endpoint for now
-    // later, just change this endpoint to the real one
-    await axios.post("/api/refund/delete", { id });
+{
+  accessorKey: "status",
+  header: "ステータス",
+  // Added: exact match status filter
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue || filterValue === "all") return true;
+      return row.getValue(columnId) === filterValue;
+    },
+  cell: ({ row }) => {
+    const status = row.original.status as Status;
+    const config = STATUS[status];
 
-    return {
-      success: true,
-      deleted_at: new Date().toISOString(),
-      delete_request_body: JSON.stringify(
-        {
-          id,
-          action: "delete",
-        },
-        null,
-        2,
-      ),
-      delete_response_body: JSON.stringify(
-        {
-          success: true,
-          message: "Fake delete completed",
-        },
-        null,
-        2,
-      ),
-    };
-  } catch (error) {
-    console.error("deleteRefund error:", error);
-    throw error;
-  }
-};
+    return (
+      <Badge variant={config?.variant} className="px-1.5">
+        {config?.variant === "success" ? (
+          <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
+        ) : (
+          <IconLoader className="animate-spin duration-700" />
+        )}
+        {config?.label ?? status}
+      </Badge>
+    );
+  },
+},
+  {
+    id: "actions",
+    cell: ({ row }) => (
+      <Link href={`dashboard/refund/${row.original.id}`}>
+        <Button variant="link" size="sm" className="px-2">
+          <IconChevronRight />
+        </Button>
+      </Link>
+    ),
+  },
+];
 
-// 2026-02-20T06:56:19.663114(UTC)を2026/02/20 15:56:19(JST)の形式に変換する関数
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
+  const { transform, transition, setNodeRef, isDragging } = useSortable({
+    id: row.original.id,
   });
-};
 
-const landStatusMap: Record<string, string> = {
-  "11": "短期滞在",
-  "14": "外交",
-  "17": "公用",
-  "99": "その他",
-  "96": "米軍構成員",
-  "91": "上陸許可書による入国",
-  "95": "非居住者に該当する日本国籍の者",
-};
+  return (
+    <TableRow
+      data-state={row.getIsSelected() && "selected"}
+      data-dragging={isDragging}
+      ref={setNodeRef}
+      className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: transition,
+      }}
+    >
+      {row.getVisibleCells().map((cell) => (
+        <TableCell key={cell.id}>
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
 
-// YYYYMMDDをYYYY/MM/DDに変換する関数
-const formatDateCompact = (dateStr: string) => {
-  if (dateStr.length !== 8) return dateStr;
-  return `${dateStr.slice(0, 4)}/${dateStr.slice(4, 6)}/${dateStr.slice(6)}`;
-};
+export function DataTable({
+  data: initialData,
+}: {
+  data: z.infer<typeof schema>[];
+}) {
+  const [data, setData] = React.useState(() => initialData);
+  const [rowSelection, setRowSelection] = React.useState({});
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
-export default function RefundDetailClient({ refund }: { refund: Refund }) {
-  const [refundState, setRefundState] = useState<Refund>(refund);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [open, setOpen] = useState(false);
+  // Added: global search state
+  const [globalFilter, setGlobalFilter] = React.useState("");
 
-  if (!refundState) {
-    return null;
+  // -----Added: Export Loading State (Optional) -----  
+  const [loading, setLoading] = React.useState<"csv" | "xlsx" | null>(null);
+
+  const sortableId = React.useId();
+  const sensors = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    useSensor(KeyboardSensor, {}),
+  );
+
+  // Update internal data when props change
+  React.useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
+
+  const dataIds = React.useMemo<UniqueIdentifier[]>(
+    () => data?.map(({ id }) => id) || [],
+    [data],
+  );
+
+  // Added: status dropdown options
+  const statusOptions = React.useMemo(
+    () => [
+      { value: "all", label: "すべて" },
+      ...Object.entries(STATUS).map(([key, config]) => ({
+        value: key,
+        label: config.label,
+      })),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      sorting,
+      columnVisibility,
+      rowSelection,
+      columnFilters,
+      pagination,
+      globalFilter, // Added: global search state into table
+    },
+    getRowId: (row) => row.id.toString(),
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
+    onGlobalFilterChange: setGlobalFilter, // Added: search state updater
+    globalFilterFn: globalSearchFilter, // Added: custom search logic
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+  });
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (active && over && active.id !== over.id) {
+      setData((data) => {
+        const oldIndex = dataIds.indexOf(active.id);
+        const newIndex = dataIds.indexOf(over.id);
+        return arrayMove(data, oldIndex, newIndex);
+      });
+    }
   }
 
-  const handleDelete = async () => {
-    if (isDeleting) return;
+  // ── エクスポートデータ取得 ──────────────────────────────
+  const getExportData = () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const rowsToExport =
+      selectedRows.length > 0
+        ? selectedRows
+        : table.getFilteredRowModel().rows;
+    return rowsToExport.map((row) => ({
+      ID: row.original.id,
+      取引作成日: row.original.createdAt,
+      店舗名: row.original.shopName,
+      氏名: row.original.name,
+      国籍: row.original.nation,
+      生年月日:
+        row.original.birthDate?.length === 8
+          ? `${row.original.birthDate.slice(0, 4)}/${row.original.birthDate.slice(4, 6)}/${row.original.birthDate.slice(6, 8)}`
+          : row.original.birthDate,
+      合計金額: row.original.totalAmount,
+      合計税額: row.original.totalTax,
+      ステータス: row.original.status,
+    }));
+  };
 
+  // ── Export Handler ──────────────────────────────────
+  const handleExport = async (
+    type: "csv" | "xlsx",
+    action: () => void | Promise<void>,
+  ) => {
     try {
-      setIsDeleting(true);
-
-      const result = await deleteRefund(refundState.id);
-
-      setRefundState((prev) => ({
-        ...prev,
-        status: "cancelled",
-        deleted_at: result.deleted_at,
-        delete_request_body: result.delete_request_body,
-        delete_response_body: result.delete_response_body,
-      }));
-
-      toast.success("申請を取り消しました");
-      setOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("取消処理に失敗しました");
+      setLoading(type);
+      await action();
     } finally {
-      setIsDeleting(false);
+      setLoading(null);
     }
   };
 
+  // Added: current selected status value
+  const selectedStatus =
+    (table.getColumn("status")?.getFilterValue() as string) ?? "all";
+
   return (
-    <div className="max-w-3xl w-full mx-auto p-6 space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">免税申請詳細</h1>
-      </div>
+    <Tabs
+      defaultValue="outline"
+      className="w-full flex-col justify-start gap-6"
+    >
+      <div className="flex items-center justify-between px-4 lg:px-6">
 
-      <div>
-        <ID label="申請ID" value={refundState.id} />
-        <ID label="作成日時" value={formatDate(refundState.created_at)} />
-        {refundState.deleted_at && (
-          <ID label="取消日時" value={formatDate(refundState.deleted_at)} />
-        )}
-        <Badge variant={STATUS[refundState.status]?.variant as any}>
-          {STATUS[refundState.status]?.label || refundState.status}
-        </Badge>
-      </div>
-
-      {/* パスポート情報 */}
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <h2 className="font-semibold">パスポート情報</h2>
-          <Separator />
-          <Info label="パスポート番号" value={refundState.passport_no} />
-          <Info label="氏名" value={refundState.name} />
-          <Info label="国籍" value={refundState.nation} />
-          <Info
-            label="生年月日"
-            value={formatDateCompact(refundState.birth_date)}
-          />
-          <Info
-            label="在留資格"
-            value={landStatusMap[refundState.land_status]}
-          />
-          <Info label="入国日" value={formatDateCompact(refundState.land_date)} />
-          {refundState.residence_country && (
-            <Info label="居住国" value={refundState.residence_country} />
-          )}
-          {refundState.chinese_state && (
-            <Info label="居住州" value={refundState.chinese_state} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 金額情報 */}
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <h2 className="font-semibold">注文情報</h2>
-          <Separator />
-          <Info label="注文ID" value={refundState.order_id || "-"} />
-          <Info
-            label="合計（税込）"
-            value={`¥${(refundState.total_received ?? 0).toLocaleString()}`}
-          />
-          <Info
-            label="消費税額"
-            value={`¥${(refundState.total_tax ?? 0).toLocaleString()}`}
-          />
-        </CardContent>
-      </Card>
-
-      {/* NTA送信情報 */}
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <h2 className="font-semibold">NTA送信情報</h2>
-          <Separator />
-          <AccordionDemo
-            sent_request_json={refundState.request_body}
-            response_request_json={refundState.response_body}
-            sent_delete_json={refundState.delete_request_body}
-            response_delete_json={refundState.delete_response_body}
-          />
-        </CardContent>
-      </Card>
-
-      {/* アクション */}
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" asChild>
-          <Link href="/dashboard">ダッシュボードへ戻る</Link>
-        </Button>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="destructive"
-              disabled={isDeleting || !!refundState.deleted_at}
-            >
-              {refundState.deleted_at ? "取消済み" : "申請を取り消す"}
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="sm:max-w-md">
-            <DialogClose asChild>
-              <button
-                className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100"
-                aria-label="閉じる"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </DialogClose>
-
-            <DialogHeader>
-              <DialogTitle>この申請を取り消しますか？</DialogTitle>
-              <DialogDescription>
-                取り消し後、この申請は取消済みとして記録されます。
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <DialogClose asChild>
-                <Button variant="outline">キャンセル</Button>
-              </DialogClose>
-
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? "取消中..." : "取り消す"}
+        {/* ── Left Side: 列をカスタマイズ  ──────────────────────────── */}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <IconLayoutColumns />
+                <span className="hidden lg:inline">列をカスタマイズ</span>
+                <span className="lg:hidden">列</span>
+                <IconChevronDown />
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {table
+                .getAllColumns()
+                .filter(
+                  (column) =>
+                    typeof column.accessorFn !== "undefined" &&
+                    column.getCanHide(),
+                )
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {/* カラム名を入れる */}
+                      {column.columnDef.header as string}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Added: search input */}
+  <Input
+    placeholder="検索（ID・店舗名・氏名・国籍・ステータス）"
+    value={globalFilter}
+    onChange={(e) => setGlobalFilter(e.target.value)}
+    className="w-full lg:w-[320px]"
+  />
+
+  {/* Added: status dropdown + conditional clear button */}
+  <div className="flex items-center gap-2">
+    <Select
+      value={selectedStatus}
+      onValueChange={(value) => {
+        table.getColumn("status")?.setFilterValue(value);
+      }}
+    >
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="ステータス" />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    {selectedStatus !== "all" && (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => table.getColumn("status")?.setFilterValue("all")}
+      >
+        Clear
+      </Button>
+    )}
+  </div>
+        </div>
+
+        {/* ── Right Side: CSV/Excel 出力 ──────────────────────────── */}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                {loading ? (
+                  <IconLoader className="size-4 animate-spin" />
+                ) : (
+                  <IconDownload className="size-4" />
+                )}
+                <span>エクスポート</span>
+                <IconChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                disabled={!!loading}
+                onClick={() =>
+                  handleExport("csv", () =>
+                    exportToCSV(getExportData(), "refund-data"),
+                  )
+                }
+                className="gap-2 cursor-pointer"
+              >
+                <IconFileTypeCsv className="size-4" />
+                CSV
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                disabled={!!loading}
+                onClick={() =>
+                  handleExport("xlsx", () =>
+                    exportToXLSX(getExportData(), "refund-data"),
+                  )
+                }
+                className="gap-2 cursor-pointer"
+              >
+                <IconFileSpreadsheet className="size-4" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          
+        </div>
       </div>
-    </div>
+      <TabsContent
+        value="outline"
+        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+      >
+        <div className="overflow-hidden rounded-lg border">
+          <DndContext
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            onDragEnd={handleDragEnd}
+            sensors={sensors}
+            id={sortableId}
+          >
+            <Table>
+              <TableHeader className="bg-muted sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id} colSpan={header.colSpan}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                {table.getRowModel().rows?.length ? (
+                  <SortableContext
+                    items={dataIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {table.getRowModel().rows.map((row) => (
+                      <DraggableRow key={row.id} row={row} />
+                    ))}
+                  </SortableContext>
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </DndContext>
+        </div>
+        <div className="flex items-center justify-between px-4">
+          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+            {/* {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredRowModel().rows.length} row(s) selected. */}
+          </div>
+          <div className="flex w-full items-center gap-8 lg:w-fit">
+            <div className="hidden items-center gap-2 lg:flex">
+              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                ページあたりの行数
+              </Label>
+              <Select
+                value={`${table.getState().pagination.pageSize}`}
+                onValueChange={(value) => {
+                  table.setPageSize(Number(value));
+                }}
+              >
+                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                  <SelectValue
+                    placeholder={table.getState().pagination.pageSize}
+                  />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((pageSize) => (
+                    <SelectItem key={pageSize} value={`${pageSize}`}>
+                      {pageSize}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-fit items-center justify-center text-sm font-medium">
+              Page {table.getState().pagination.pageIndex + 1} of{" "}
+              {table.getPageCount()}
+            </div>
+            <div className="ml-auto flex items-center gap-2 lg:ml-0">
+              <Button
+                variant="outline"
+                className="hidden h-8 w-8 p-0 lg:flex"
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <span className="sr-only">Go to first page</span>
+                <IconChevronsLeft />
+              </Button>
+              <Button
+                variant="outline"
+                className="size-8"
+                size="icon"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <span className="sr-only">Go to previous page</span>
+                <IconChevronLeft />
+              </Button>
+              <Button
+                variant="outline"
+                className="size-8"
+                size="icon"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                <span className="sr-only">Go to next page</span>
+                <IconChevronRight />
+              </Button>
+              <Button
+                variant="outline"
+                className="hidden size-8 lg:flex"
+                size="icon"
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+              >
+                <span className="sr-only">Go to last page</span>
+                <IconChevronsRight />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 
-/* ---------- 小コンポーネント ---------- */
+function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
+  const isMobile = useIsMobile();
 
-function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
+    <Drawer direction={isMobile ? "bottom" : "right"}>
+      <DrawerTrigger asChild>
+        <Link href={`dashboard/refund/${item.id}`}>
+          <Button variant="link" className="px-0">
+            {item.id}
+          </Button>
+        </Link>
+      </DrawerTrigger>
+
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Refund Detail</DrawerTitle>
+          <DrawerDescription>
+            {item.name} / {item.passportNo}
+          </DrawerDescription>
+        </DrawerHeader>
+
+        <div className="px-4 space-y-3 text-sm">
+          <div>Nation: {item.nation}</div>
+          <div>Email: {item.email}</div>
+          <div>Total Tax: {item.totalTax}</div>
+          <div>Status: {item.status}</div>
+          <div>Created At: {item.createdAt}</div>
+        </div>
+
+        <DrawerFooter>
+          <DrawerClose asChild>
+            <Button variant="outline">Close</Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
-function ID({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground">{label}:</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
 
 ```
