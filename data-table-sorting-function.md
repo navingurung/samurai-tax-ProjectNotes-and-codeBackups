@@ -1,8 +1,3 @@
-data-table.tsx sortable header
-
-
-
-
 ```javascript
 
 import {
