@@ -35,22 +35,26 @@ So:
 ## 🔄 Flow Diagram (Simple)
 
 ```mermaid
-flowchart TD
+fflowchart TD
 
-A[Start on staging branch] --> B[Modify file]
+A[Start] --> B{Any uncommitted changes?}
 
-B --> C{Try checkout another branch}
+B -->|No| C[git checkout another-branch]
 
-C -->|Safe| D[Switch branch ✅]
-D --> E[Changes move with you]
+B -->|Yes| D[git checkout another-branch]
 
-E --> F[Return to staging]
-F --> G[Changes still there ✅]
+D --> E["error: Your local changes would be overwritten\nPlease commit or stash before switching"]
 
-C -->|Conflict| H[Git blocks ❌]
-H --> I[Use stash or commit]
+E --> F{Choose solution}
 
-I --> J[Switch safely]
+F --> G[git stash]
+G --> H[git checkout another-branch]
+H --> I[git stash pop]
+
+F --> J[git add .]
+J --> K[git commit -m 'WIP']
+K --> L[git checkout another-branch]
+L --> M[git reset HEAD~1]
 ```
 
 ---
