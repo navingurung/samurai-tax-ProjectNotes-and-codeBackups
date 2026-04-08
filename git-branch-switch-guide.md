@@ -35,7 +35,7 @@ So:
 ## 🔄 Flow Diagram (Simple)
 
 ```mermaid
-
+flowchart TD
 
 A[Start] --> B{Any uncommitted changes?}
 
@@ -43,7 +43,7 @@ B -->|No| C[git checkout another-branch]
 
 B -->|Yes| D[git checkout another-branch]
 
-D --> E["error: Your local changes would be overwritten\nPlease commit or stash before switching"]
+D --> E["error: Your local changes would be overwritten<br/>Please commit or stash before switching"]
 
 E --> F{Choose solution}
 
@@ -52,7 +52,7 @@ G --> H[git checkout another-branch]
 H --> I[git stash pop]
 
 F --> J[git add .]
-J --> K[git commit -m 'WIP']
+J --> K[git commit -m WIP]
 K --> L[git checkout another-branch]
 L --> M[git reset HEAD~1]
 ```
