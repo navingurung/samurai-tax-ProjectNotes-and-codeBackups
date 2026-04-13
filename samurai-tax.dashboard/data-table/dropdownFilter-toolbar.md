@@ -81,4 +81,4 @@ flowchart LR
     B6 --> C6
 ```
 
-<img width="1006" height="629" alt="Screenshot 2026-04-13 at 9 53 32" src="https://github.com/user-attachments/assets/43a1fe21-bcf5-4daf-b966-d6e3197b36af" />
+<img width="1588" height="669" alt="Screenshot 2026-04-13 at 10 03 17" src="https://github.com/user-attachments/assets/ebec2350-abde-4dfa-adb3-42ab4b010550" />
