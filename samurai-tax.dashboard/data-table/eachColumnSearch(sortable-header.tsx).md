@@ -28,6 +28,7 @@ export function SortableHeader({
   return (
     ............
     <>
+      <DropdownMenuContent align="start" className="z-50 w-56">
       {/* Display the search input only when enableSearch is true */}
       {/* Code location: around line 55 */}
       {enableSearch && (
