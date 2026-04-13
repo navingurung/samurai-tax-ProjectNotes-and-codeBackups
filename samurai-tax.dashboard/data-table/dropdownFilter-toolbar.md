@@ -80,3 +80,5 @@ flowchart LR
     B5 --> C5
     B6 --> C6
 ```
+
+<img width="1006" height="629" alt="Screenshot 2026-04-13 at 9 53 32" src="https://github.com/user-attachments/assets/43a1fe21-bcf5-4daf-b966-d6e3197b36af" />
