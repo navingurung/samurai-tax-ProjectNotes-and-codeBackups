@@ -147,4 +147,11 @@ flowchart LR
 
 
 
+<img width="798" height="422" alt="Screenshot 2026-04-15 at 9 50 09" src="https://github.com/user-attachments/assets/c6a7e339-e3b5-460b-b5b8-0365ff1a2a35" />
+
+
+<img width="792" height="186" alt="Screenshot 2026-04-15 at 9 50 24" src="https://github.com/user-attachments/assets/4553fa3d-c6d4-46e9-99a9-a05c684ab7f9" />
+
+
+
 
