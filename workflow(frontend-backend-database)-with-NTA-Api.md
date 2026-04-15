@@ -118,7 +118,18 @@ flowchart LR
     session.add(refund)
     
     refund_record.delete_request_body = encrypt(request_body)
+    #  国税庁（NTA）APIのレスポンスが空または非JSONの場合に
+    # resp.json() でパースエラーが発生するため、
+    # 安全にJSON形式へ変換してから暗号化し、DBへ保存する。
+    # The error occurs because the backend assumes the NTA API response is always valid JSON.
+    # When the response is empty or not JSON, resp.json() fails, leading to a 500 Internal Server Error.
+
+
+　　# 原因：
+　　# レスポンスが空またはJSON形式でない場合、resp.json() が失敗し、
+　　# encrypt(resp.json()) の処理で500エラーが発生する。
     refund_record.delete_response_body = encrypt(resp.json())
+
     refund_record.delete_send_no = newSendNo
     refund_record.deleted_at = datetime.now()
     session.add(refund_record)
