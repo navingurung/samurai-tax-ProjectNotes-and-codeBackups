@@ -188,4 +188,89 @@ flowchart LR
 
 ```
 
+```python
+if response is not JSON format then nothing will save on DB, even status will not changed,
 
+
+@router.post("/dashboard/{id}")
+async def delete_refund(
+  current_: CurrentCompany, 
+  id: int, 
+  session: SessionDep
+):
+  statement = (
+    select(Refund, RefundRecord)
+    .join(RefundRecord, Refund.refund_record_id == RefundRecord.id)
+    .where(Refund.id == id)
+  )
+  result = session.exec(statement).first()
+  if not result:
+    raise HTTPException(status_code=404, detail="Refund not found")
+  refund, refund_record = result
+  
+  request_body = decrypt(refund_record.request_body)
+  general_total = 0
+  
+  if "details" in request_body and isinstance(request_body["details"], list):
+    for detail in request_body["details"]:
+      if "price" in detail and isinstance(detail["price"], (int, float)):
+        detail["price"] = -abs(detail["price"])
+        general_total += detail["price"]
+      if "number" in detail and isinstance(detail["number"], (int, float)):
+        detail["number"] = -abs(detail["number"])
+  
+  sendNo = request_body.get("sendNo", "")
+  newSendNo = sendNo[:-3] + "002"
+  request_body["sendNo"] = newSendNo
+  request_body["generalTotal"] = str(general_total)
+  
+  try: 
+    url = f"{NTA_URL}"
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    body=request_body
+    resp = send_post_request(url=url, headers=headers, payload=body)
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Error sending delete request to NTA: {str(e)}")
+  
+  # ✅ Check if NTA response is valid JSON BEFORE saving to DB
+  try:
+    resp.json()
+  except Exception:
+    # 非JSONまたは空レスポンスの場合はDBに保存せず、そのままフロントへ返す
+    return {
+      "message": f"deleted refund {id}",
+      "nta_status_code": resp.status_code,
+      "detail": "NTA response is not JSON, skipped DB save",
+    }
+
+  try:
+    refund.status = "cancelled"
+    session.add(refund)
+    
+    refund_record.delete_request_body = encrypt(request_body)
+    refund_record.delete_response_body = encrypt(resp.json())
+    refund_record.delete_send_no = newSendNo
+    refund_record.deleted_at = datetime.now()
+    session.add(refund_record)
+    session.commit()
+    session.refresh(refund_record)
+    session.refresh(refund)
+    
+  except Exception as e:
+    session.rollback()
+    raise HTTPException(status_code=500, detail=f"Error saving delete refund to DB: {str(e)}")
+
+
+  return {
+    "message": f"deleted refund {id}",
+  }
+
+
+
+or just resp body will be skip but all will be save with status change.
+
+try:
+    refund_record.delete_response_body = encrypt(resp.json())
+except Exception:
+    pass
+```
