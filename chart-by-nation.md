@@ -94,7 +94,7 @@ feat(chart-by-nation): improve pie chart UX
 - Fix "その他" badge text color for readability
 - Remove unused PieData type and fix generateOklchToWhite step values
 
-対欧完了詳細
+対応完了詳細
 - スライスラベルを削除し視認性を改善
 - 国旗・金額・件数・割合付きカスタムツールチップを追加
 - ホバー時のスライス拡大演出を追加
