@@ -84,3 +84,12 @@ import { CountryFlag } from "./country-flag/country-flag";
         />
       )}
 ```
+
+
+feat(chart-by-nation): improve pie chart UX
+
+- Remove slice labels for cleaner chart appearance
+- Add custom tooltip with country flag, amount, count and % badge
+- Add hover focus effect (active slice expands outward)
+- Fix "その他" badge text color for readability
+- Remove unused PieData type and fix generateOklchToWhite step values
