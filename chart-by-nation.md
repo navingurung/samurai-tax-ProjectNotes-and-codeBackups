@@ -93,3 +93,10 @@ feat(chart-by-nation): improve pie chart UX
 - Add hover focus effect (active slice expands outward)
 - Fix "その他" badge text color for readability
 - Remove unused PieData type and fix generateOklchToWhite step values
+
+対欧完了詳細
+- スライスラベルを削除し視認性を改善
+- 国旗・金額・件数・割合付きカスタムツールチップを追加
+- ホバー時のスライス拡大演出を追加
+- 「その他」バッジの文字色を調整
+- 未使用 `PieData` 型を削除し、`generateOklchToWhite` の値を修正
