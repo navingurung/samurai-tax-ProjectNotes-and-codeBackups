@@ -1,3 +1,4 @@
+```tsx
 // lib/continental.ts
 import { continent } from "@brixtol/country-continent";
 
@@ -29,3 +30,4 @@ export function getContinentLabels(input: string): ContinentLabels {
   const ja = CONTINENT_JA[en] || "その他";
   return { en, ja };
 }
+```
