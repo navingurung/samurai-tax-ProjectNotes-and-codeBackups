@@ -21,13 +21,13 @@ import { LoginShopContext } from "../../shared/providers/LoginShopProvider";
 import { useContext } from "react";
 import dayjs from "dayjs";
 import { useCustomSnackbar } from "../../shared/providers/Snackbar";
+import { SquareTransactionSelector } from "../../features/steps/square/SquareTransactionSelector";
+import type { SquareTransaction } from "../../features/steps/square/types";
 import { useTranslation } from "react-i18next";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { SquareTransactionSelector } from "./square/SquareTransactionSelector";
-import type { SquareTransaction } from "./square/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -48,7 +48,7 @@ type OrderProps = {
   discounts: string;
   onDiscountChange: (discounts: string) => void;
   isShopify: boolean;
-  isSquare: boolean;
+  isSquare: boolean; // New prop for Square integration
 };
 
 const format_jpy = (amount: number) => {
@@ -76,19 +76,22 @@ export const Order: React.FC<OrderProps> = ({
   discounts,
   onDiscountChange,
   isShopify,
-  isSquare,
+  isSquare, // New prop for Square integration
 }) => {
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const context = useContext(LoginShopContext);
-  if (!context) throw new Error(t("headerError"));
+  if (!context) {
+    throw new Error(t("headerError"));
+  }
   const { loginShop } = context;
-  if (!loginShop) throw new Error(t("loginShopError"));
-
+  if (!loginShop) {
+    throw new Error(t("loginShopError"));
+  }
   const [inputError, setInputError] = useState(false);
   const { showSnackbar } = useCustomSnackbar();
   const purchaseInfoRef = useRef<HTMLDivElement | null>(null);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("");
+  const [slectedPaymentId, setSelectedPaymentId] = useState<string>(""); // State for selected Square payment ID
 
   const scrollToPurchaseInfo = () => {
     if (!purchaseInfoRef.current) return;
@@ -103,20 +106,24 @@ export const Order: React.FC<OrderProps> = ({
     });
     const data = response.data;
     if (!data) {
-      showSnackbar({ message: t("orders.fetchCompanyError"), variant: "error" });
+      showSnackbar({
+        message: t("orders.fetchCompanyError"),
+        variant: "error",
+      });
       return;
+    } else {
+      onOrderChange({
+        ...orderData,
+        senderId: data.sender.sender_id,
+        senderIdType: data.sender.sender_type,
+        shopId: data.shop.shop_id,
+        shopType: data.shop.shop_type,
+        shopName: data.shop.shop_name,
+        shopPlace: data.shop.shop_place,
+        bizName: data.company.biz_name,
+        bizPlace: data.company.biz_place,
+      });
     }
-    onOrderChange({
-      ...orderData,
-      senderId: data.sender.sender_id,
-      senderIdType: data.sender.sender_type,
-      shopId: data.shop.shop_id,
-      shopType: data.shop.shop_type,
-      shopName: data.shop.shop_name,
-      shopPlace: data.shop.shop_place,
-      bizName: data.company.biz_name,
-      bizPlace: data.company.biz_place,
-    });
   };
 
   useEffect(() => {
@@ -142,8 +149,7 @@ export const Order: React.FC<OrderProps> = ({
       tx.order.line_items.length > 0
         ? tx.order.line_items.map((item, index) => {
             const priceWithTax = item.total_money.amount;
-            const price =
-              item.base_price_money.amount * Number(item.quantity);
+            const price = item.base_price_money.amount * Number(item.quantity);
             return {
               serial: index + 1,
               goodsType: "1",
@@ -192,16 +198,19 @@ export const Order: React.FC<OrderProps> = ({
     }
     try {
       const response = await axios.get(`${API_BASE_URL}/orders/${digitCode}`, {
-        params: { shop_id: loginShop.id },
+        params: {
+          shop_id: loginShop.id,
+        },
         withCredentials: true,
       });
-      if (response.status !== 200) return;
+      if (response.status !== 200) {
+        return;
+      }
       const data = response.data;
-
       const email =
-        data?.order?.raw_payload?.customer?.defaultEmailAddress?.emailAddress || "";
+        data?.order?.raw_payload?.customer?.defaultEmailAddress?.emailAddress ||
+        "";
       onEmailAddressChange(email);
-
       const details = data.order.raw_payload.lineItems.edges.map(
         ({ node }: any, index: number) => {
           const quantity = node.quantity;
@@ -227,7 +236,10 @@ export const Order: React.FC<OrderProps> = ({
         const baseName = item.goodsName;
         if (titleCount[baseName]) {
           titleCount[baseName] += 1;
-          return { ...item, goodsName: `#${titleCount[baseName]} ${baseName}` };
+          return {
+            ...item,
+            goodsName: `#${titleCount[baseName]} ${baseName}`,
+          };
         } else {
           titleCount[baseName] = 1;
           return item;
@@ -237,46 +249,57 @@ export const Order: React.FC<OrderProps> = ({
         ...item,
         goodsName: item.goodsName.substring(0, 50),
       }));
-
       const receivedAmount = data.order.raw_payload.totalReceivedSet?.shopMoney
         ? data.order.raw_payload.totalReceivedSet.shopMoney.amount
         : data.order.raw_payload.totalReceived;
-      onReceivedChange(parseInt(receivedAmount, 10).toString());
-
+      const received = parseInt(receivedAmount, 10);
+      onReceivedChange(received.toString());
       const discountAmount = data.order.raw_payload.totalDiscountsSet?.shopMoney
         ? data.order.raw_payload.totalDiscountsSet.shopMoney.amount
         : data.order.raw_payload.totalDiscounts;
-      onDiscountChange(parseInt(discountAmount, 10).toString());
+      const discount = parseInt(discountAmount, 10);
+      onDiscountChange(discount.toString());
 
       let taxRaw = data.order.raw_payload.totalTaxSet?.shopMoney
         ? data.order.raw_payload.totalTaxSet.shopMoney.amount
         : data.order.raw_payload.totalTax;
       let tax = parseInt(taxRaw, 10);
-      if (!tax || isNaN(tax) || tax === 0) tax = Math.floor(parseInt(receivedAmount, 10) / 11);
+      // 0 / NaN / null / undefined の場合のフォールバック処理
+      if (!tax || isNaN(tax) || tax === 0) {
+        tax = Math.floor(received / 11);
+      }
       onTaxChange(tax.toString());
-
-      const netTotal = parseInt(receivedAmount, 10) - tax;
-      onOrderIdChange(data.order_id.order_id);
-
-      const sellDate = dayjs(data.order.raw_payload.createdAt).format("YYYYMMDD");
+      const netTotal = received - tax;
+      const orderId = data.order_id.order_id;
+      onOrderIdChange(orderId);
+      const sellDate = dayjs(data.order.raw_payload.createdAt).format(
+        "YYYYMMDD",
+      );
       onOrderChange({
         details: finalDetails,
-        sellDate,
+        sellDate: sellDate,
+        // consumTotal: "0",
         generalTotal: netTotal.toString(),
         lqExemptOrNot: "0",
         transOrNot: "0",
       });
-
-      requestAnimationFrame(() => scrollToPurchaseInfo());
-    } catch {
-      showSnackbar({ message: t("orders.fetchOrderError"), variant: "error" });
+      requestAnimationFrame(() => {
+        scrollToPurchaseInfo();
+      });
+    } catch (error) {
+      showSnackbar({
+        message: t("orders.fetchOrderError"),
+        variant: "error",
+      });
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
+  // 商品追加用のハンドラー
   const makeItem = (serial: number) => ({
-    serial,
+    serial: serial,
     goodsType: "1",
     goodsName: "",
     number: "1",
@@ -288,16 +311,24 @@ export const Order: React.FC<OrderProps> = ({
 
   const handleAddItem = () => {
     const nextSerial = (orderData.details?.length || 0) + 1;
-    onOrderChange({ ...orderData, details: [...(orderData.details || []), makeItem(nextSerial)] });
+    const next = [...(orderData.details || []), makeItem(nextSerial)];
+    onOrderChange({ ...orderData, details: next });
   };
 
   const handleDeleteItem = (serial: number) => {
-    const filtered = (orderData.details || []).filter((it: any) => it.serial !== serial);
-    const renumbered = filtered.map((it: any, idx: number) => ({ ...it, serial: idx + 1 }));
+    const filtered = (orderData.details || []).filter(
+      (it: any) => it.serial !== serial,
+    );
+    const renumbered = filtered.map((it: any, idx: number) => ({
+      ...it,
+      serial: idx + 1,
+    }));
     onOrderChange({ ...orderData, details: renumbered });
   };
 
-  const isDisabled = isShopify || isSquare;
+  const onNext = () => {
+    setActiveStep(1);
+  };
 
   return (
     <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
@@ -306,7 +337,10 @@ export const Order: React.FC<OrderProps> = ({
           mt: 2,
           mb: 4,
           textAlign: "left",
-          width: { xs: "100%", md: "80%" },
+          width: {
+            xs: "100%",
+            md: "80%",
+          },
         }}
       >
         <Backdrop
@@ -317,7 +351,7 @@ export const Order: React.FC<OrderProps> = ({
           <Typography sx={{ ml: 2 }}>{t("orders.fetchingOrder")}</Typography>
         </Backdrop>
 
-        {/* ── Shopify: 6-digit code entry ── */}
+        {/* Shopify店舗の場合は6桁コード入力を表示 * */}
         {isShopify && (
           <>
             <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
@@ -342,7 +376,12 @@ export const Order: React.FC<OrderProps> = ({
                     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
                       const value = e.target.value;
                       onCodeChange(value);
-                      setInputError(!/^[A-Z]{6}$/.test(value));
+                      const regex = /^[A-Z]{6}$/;
+                      if (!regex.test(value)) {
+                        setInputError(true);
+                      } else {
+                        setInputError(false);
+                      }
                     },
                   },
                 }}
@@ -353,15 +392,20 @@ export const Order: React.FC<OrderProps> = ({
                 variant="contained"
                 sx={{
                   width: { xs: "100%", sm: "60%" },
-                  bgcolor: colors.blue,
+                  bgcolor: `${colors.blue}`,
                   borderRadius: 3,
                   textTransform: "none",
                   minHeight: "120px",
                 }}
-                onClick={handleGetOrder}
+                onClick={() => {
+                  handleGetOrder();
+                }}
                 disabled={inputError}
               >
-                <Typography variant="h5" sx={{ color: colors.white, fontWeight: "bold" }}>
+                <Typography
+                  variant="h5"
+                  sx={{ color: colors.white, fontWeight: "bold" }}
+                >
                   {t("orders.fetchOrder")}
                 </Typography>
               </Button>
@@ -369,15 +413,13 @@ export const Order: React.FC<OrderProps> = ({
           </>
         )}
 
-        {/* ── Square: transaction selector ── */}
+        {/* Square店舗の場合は取引選択コンポーネントを表示 * */}
         {isSquare && (
           <SquareTransactionSelector
             onSelect={handleSquareTransactionSelect}
-            selectedPaymentId={selectedPaymentId}
+            selectedPaymentId={slectedPaymentId}
           />
         )}
-
-        {/* ── 購入情報 ── */}
         <Typography
           variant="h5"
           gutterBottom
@@ -416,12 +458,13 @@ export const Order: React.FC<OrderProps> = ({
               value={orderData.sellDate ? dayjs(orderData.sellDate) : null}
               minDate={dayjs().subtract(180, "days")}
               onChange={(date) => {
+                const formattedDate = date ? date.format("YYYYMMDD") : "";
                 onOrderChange({
                   ...orderData,
-                  sellDate: date ? date.format("YYYYMMDD") : "",
+                  sellDate: formattedDate,
                 });
               }}
-              disabled={isDisabled}
+              disabled={isShopify || isSquare}
             />
           </LocalizationProvider>
           <TextField
@@ -431,14 +474,13 @@ export const Order: React.FC<OrderProps> = ({
             sx={{ width: "100%" }}
             autoComplete="off"
             onChange={(e) => onOrderIdChange(e.target.value)}
-            disabled={isDisabled}
+            disabled={isShopify || isSquare}
             required
           />
         </Box>
-
-        {/* ── 商品内訳 ── */}
         <Box
           sx={{
+            // textAlign: "left",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -451,15 +493,28 @@ export const Order: React.FC<OrderProps> = ({
                 {t("orders.items")}
               </Typography>
               {orderData.details.map((product: any) => (
-                <Card sx={{ mt: 2, width: "100%", bgcolor: "#f5f5f5" }} key={product.serial}>
+                <Card
+                  sx={{ mt: 2, width: "100%", bgcolor: "#f5f5f5" }}
+                  key={product.serial}
+                >
                   <Box sx={{ padding: 2 }}>
-                    <Box sx={{ justifyContent: "space-between", display: "flex" }}>
-                      <Typography sx={{ display: "flex", alignItems: "center" }}>
+                    <Box
+                      sx={{
+                        justifyContent: "space-between",
+                        display: "flex",
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
                         {t("orders.serialNumber")}： {product.serial}
                       </Typography>
                       {product.serial > 1 && (
                         <IconButton
-                          disabled={isDisabled}
+                          disabled={isShopify || isSquare}
                           onClick={() => handleDeleteItem(product.serial)}
                         >
                           <DeleteIcon />
@@ -477,7 +532,7 @@ export const Order: React.FC<OrderProps> = ({
                       }}
                     >
                       <FormControl
-                        disabled={isDisabled}
+                        disabled={isShopify || isSquare}
                         sx={{ width: "100%", backgroundColor: colors.white }}
                       >
                         <InputLabel>{t("orders.goodsType")}</InputLabel>
@@ -485,12 +540,16 @@ export const Order: React.FC<OrderProps> = ({
                           label={t("orders.goodsType")}
                           value={product.goodsType}
                           onChange={(e) => {
-                            const updatedDetails = orderData.details.map((item: any) =>
-                              item.serial === product.serial
-                                ? { ...item, goodsType: e.target.value }
-                                : item,
+                            const updatedDetails = orderData.details.map(
+                              (item: any) =>
+                                item.serial === product.serial
+                                  ? { ...item, goodsType: e.target.value }
+                                  : item,
                             );
-                            onOrderChange({ ...orderData, details: updatedDetails });
+                            onOrderChange({
+                              ...orderData,
+                              details: updatedDetails,
+                            });
                           }}
                         >
                           <MenuItem value="1" sx={{ height: "60px" }}>
@@ -501,54 +560,61 @@ export const Order: React.FC<OrderProps> = ({
                           </MenuItem>
                         </Select>
                       </FormControl>
-
                       {isShopify ? (
                         <TextField
                           variant="outlined"
                           label={t("orders.productName")}
+                          type="text"
                           value={product.goodsName}
                           sx={{ width: "100%", backgroundColor: colors.white }}
                           autoComplete="off"
                           onChange={(e) => {
-                            const updatedDetails = orderData.details.map((item: any) =>
-                              item.serial === product.serial
-                                ? { ...item, goodsName: e.target.value }
-                                : item,
+                            const updatedDetails = orderData.details.map(
+                              (item: any) =>
+                                item.serial === product.serial
+                                  ? { ...item, goodsName: e.target.value }
+                                  : item,
                             );
-                            onOrderChange({ ...orderData, details: updatedDetails });
+                            onOrderChange({
+                              ...orderData,
+                              details: updatedDetails,
+                            });
                           }}
                           disabled={isShopify}
                         />
-                      ) : isSquare ? (
-                        // Square: show product name as read-only text field
-                        <TextField
-                          variant="outlined"
-                          label={t("orders.productName")}
-                          value={product.goodsName}
-                          sx={{ width: "100%", backgroundColor: colors.white }}
-                          autoComplete="off"
-                          disabled
-                        />
                       ) : (
-                        <FormControl sx={{ width: "100%", backgroundColor: colors.white }}>
+                        <FormControl
+                          disabled={isShopify}
+                          sx={{ width: "100%", backgroundColor: colors.white }}
+                        >
                           <InputLabel>{t("orders.productName")}</InputLabel>
                           <Select
                             label={t("orders.productName")}
                             value={product.goodsName}
                             onChange={(e) => {
-                              const updatedDetails = orderData.details.map((item: any) =>
-                                item.serial === product.serial
-                                  ? { ...item, goodsName: e.target.value }
-                                  : item,
+                              const updatedDetails = orderData.details.map(
+                                (item: any) =>
+                                  item.serial === product.serial
+                                    ? { ...item, goodsName: e.target.value }
+                                    : item,
                               );
-                              onOrderChange({ ...orderData, details: updatedDetails });
+                              onOrderChange({
+                                ...orderData,
+                                details: updatedDetails,
+                              });
                             }}
                           >
-                            {(loginShop.product_list || []).map((prod: string, index: number) => (
-                              <MenuItem key={index} value={prod} sx={{ height: "60px" }}>
-                                {prod}
-                              </MenuItem>
-                            ))}
+                            {(loginShop.product_list || []).map(
+                              (prod: string, index: number) => (
+                                <MenuItem
+                                  key={index}
+                                  value={prod}
+                                  sx={{ height: "60px" }}
+                                >
+                                  {prod}
+                                </MenuItem>
+                              ),
+                            )}
                           </Select>
                         </FormControl>
                       )}
@@ -561,69 +627,107 @@ export const Order: React.FC<OrderProps> = ({
                         autoComplete="off"
                         type="number"
                         onChange={(e) => {
-                          const updatedDetails = orderData.details.map((item: any) =>
-                            item.serial === product.serial
-                              ? { ...item, number: e.target.value }
-                              : item,
+                          const updatedDetails = orderData.details.map(
+                            (item: any) =>
+                              item.serial === product.serial
+                                ? { ...item, number: e.target.value }
+                                : item,
                           );
-                          onOrderChange({ ...orderData, details: updatedDetails });
+                          onOrderChange({
+                            ...orderData,
+                            details: updatedDetails,
+                          });
                         }}
-                        disabled={isDisabled}
+                        disabled={isShopify}
                       />
-
                       <Grid container spacing={2} sx={{ width: "100%" }}>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid
+                          size={{
+                            xs: 12,
+                            md: 6,
+                          }}
+                        >
                           <TextField
                             variant="outlined"
                             label={t("orders.priceExcTax")}
                             value={product.price}
                             type="number"
-                            sx={{ width: "100%", backgroundColor: colors.white }}
+                            sx={{
+                              width: "100%",
+                              backgroundColor: colors.white,
+                            }}
                             autoComplete="off"
                             onChange={(e) => {
-                              const taxRate = product.reduced === 1 ? 0.08 : 0.1;
+                              const taxRate =
+                                product.reduced === 1 ? 0.08 : 0.1;
                               const priceExcTax = e.target.value;
                               const priceWithTax = Math.round(
                                 Number(priceExcTax) * (1 + taxRate),
                               ).toString();
-                              const updatedDetails = orderData.details.map((item: any) =>
-                                item.serial === product.serial
-                                  ? { ...item, price: priceExcTax, priceWithTax }
-                                  : item,
+                              const updatedDetails = orderData.details.map(
+                                (item: any) =>
+                                  item.serial === product.serial
+                                    ? {
+                                        ...item,
+                                        price: priceExcTax,
+                                        priceWithTax: priceWithTax,
+                                      }
+                                    : item,
                               );
-                              onOrderChange({ ...orderData, details: updatedDetails });
+                              onOrderChange({
+                                ...orderData,
+                                details: updatedDetails,
+                              });
                             }}
-                            disabled={isDisabled}
+                            disabled={isShopify}
                           />
                         </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid
+                          size={{
+                            xs: 12,
+                            md: 6,
+                          }}
+                        >
                           <TextField
                             variant="outlined"
                             label={t("orders.priceIncTax")}
                             value={product.priceWithTax}
                             type="number"
-                            sx={{ width: "100%", backgroundColor: colors.white }}
+                            sx={{
+                              width: "100%",
+                              backgroundColor: colors.white,
+                            }}
                             autoComplete="off"
                             onChange={(e) => {
-                              const taxRate = product.reduced === 1 ? 0.08 : 0.1;
+                              const taxRate =
+                                product.reduced === 1 ? 0.08 : 0.1;
                               const priceWithTax = e.target.value;
                               const priceExcTax = Math.floor(
-                                (Number(priceWithTax) * 100) / (100 + taxRate * 100),
+                                (Number(priceWithTax) * 100) /
+                                  (100 + taxRate * 100),
                               ).toString();
-                              const updatedDetails = orderData.details.map((item: any) =>
-                                item.serial === product.serial
-                                  ? { ...item, priceWithTax, price: priceExcTax }
-                                  : item,
+                              const updatedDetails = orderData.details.map(
+                                (item: any) =>
+                                  item.serial === product.serial
+                                    ? {
+                                        ...item,
+                                        priceWithTax: priceWithTax,
+                                        price: priceExcTax,
+                                      }
+                                    : item,
                               );
-                              onOrderChange({ ...orderData, details: updatedDetails });
+                              onOrderChange({
+                                ...orderData,
+                                details: updatedDetails,
+                              });
                             }}
-                            disabled={isDisabled}
+                            disabled={isShopify}
                           />
                         </Grid>
                       </Grid>
 
                       <FormControl
-                        disabled={isDisabled}
+                        disabled={isShopify}
                         sx={{ width: "100%", backgroundColor: colors.white }}
                       >
                         <InputLabel>{t("orders.taxRateType")}</InputLabel>
@@ -632,47 +736,82 @@ export const Order: React.FC<OrderProps> = ({
                           value={product.reduced}
                           onChange={(e) => {
                             const taxRate = e.target.value === 1 ? 0.08 : 0.1;
-                            const priceExcTax = product.price ? Number(product.price) : 0;
+                            const priceExcTax = product.price
+                              ? Number(product.price)
+                              : 0;
                             const priceWithTax = Math.round(
                               priceExcTax * (1 + taxRate),
                             ).toString();
-                            const updatedDetails = orderData.details.map((item: any) =>
-                              item.serial === product.serial
-                                ? { ...item, reduced: e.target.value, priceWithTax }
-                                : item,
+                            const updatedDetails = orderData.details.map(
+                              (item: any) =>
+                                item.serial === product.serial
+                                  ? {
+                                      ...item,
+                                      reduced: e.target.value,
+                                      priceWithTax: priceWithTax,
+                                    }
+                                  : item,
                             );
-                            onOrderChange({ ...orderData, details: updatedDetails });
+                            onOrderChange({
+                              ...orderData,
+                              details: updatedDetails,
+                            });
                           }}
                         >
-                          <MenuItem value={0} sx={{ height: "60px" }}>10%</MenuItem>
-                          <MenuItem value={1} sx={{ height: "60px" }}>8%</MenuItem>
+                          <MenuItem value={0} sx={{ height: "60px" }}>
+                            10%
+                          </MenuItem>
+                          <MenuItem value={1} sx={{ height: "60px" }}>
+                            8%
+                          </MenuItem>
                         </Select>
                       </FormControl>
                     </Box>
                   </Box>
                 </Card>
               ))}
-
               {orderData.details.length <= 49 ? (
                 <Box>
                   <IconButton
                     size="large"
                     sx={{ mt: 2, mb: 2 }}
                     onClick={handleAddItem}
-                    disabled={isDisabled}
+                    disabled={isShopify}
                   >
                     <AddCircleIcon sx={{ fontSize: 60 }} />
                   </IconButton>
                 </Box>
               ) : (
-                <Typography variant="body1" sx={{ mt: 2 }}>
-                  {t("orders.maxItemsWarning")}
-                </Typography>
+                <Box>
+                  <Typography variant="body1" sx={{ mt: 2 }}>
+                    {t("orders.maxItemsWarning")}
+                  </Typography>
+                </Box>
               )}
             </>
           )}
+          {/* <Divider
+          sx={{
+            width: "80%",
+          }}
+        /> */}
+          {/* <TextField
+            variant="outlined"
+            label="Discount / 割引"
+            value={discounts}
+            type="number"
+            sx={{
+              width: "100%",
+              backgroundColor: colors.white,
+            }}
+            autoComplete="off"
+            onChange={(e) => {
+              const discount = e.target.value;
+              onDiscountChange(discount);
+            }}
+            disabled={disabled}
+          /> */}
 
-          {/* ── Totals summary ── */}
           <Box sx={{ width: "100%", textAlign: "left", mt: 4, mb: 8, gap: 4 }}>
             <Box sx={{ justifyContent: "space-between", display: "flex" }}>
               <Typography variant="body1" sx={{ fontWeight: "bold" }}>
@@ -692,21 +831,29 @@ export const Order: React.FC<OrderProps> = ({
             </Box>
             <Divider sx={{ marginBlock: 5 }} />
             {isShopify && (
-              <Box sx={{ justifyContent: "space-between", display: "flex" }}>
-                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-                  {t("orders.totalDiscounts")}
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: "bold", color: colors.red }}>
-                  ▲ {format_jpy(Number(discounts)) || 0}
-                </Typography>
-              </Box>
+              <>
+                <Box sx={{ justifyContent: "space-between", display: "flex" }}>
+                  <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                    {t("orders.totalDiscounts")}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{ fontWeight: "bold", color: colors.red }}
+                  >
+                    ▲ {format_jpy(Number(discounts)) || 0}
+                  </Typography>
+                </Box>
+              </>
             )}
             <Box sx={{ justifyContent: "space-between", display: "flex" }}>
               <Typography variant="body1" sx={{ fontWeight: "bold" }}>
                 {t("orders.totalPriceExcTax")}
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-                {format_jpy(Number(orderData.generalTotal) + Number(orderData.consumTotal)) || 0}
+                {format_jpy(
+                  Number(orderData.generalTotal) +
+                    Number(orderData.consumTotal),
+                ) || 0}
               </Typography>
             </Box>
             <Box sx={{ justifyContent: "space-between", display: "flex" }}>
@@ -726,29 +873,51 @@ export const Order: React.FC<OrderProps> = ({
                   ? format_jpy(Number(received))
                   : format_jpy(
                       orderData.details.reduce(
-                        (sum: number, item: any) => sum + Number(item.priceWithTax),
+                        (sum: number, item: any) =>
+                          sum + Number(item.priceWithTax),
                         0,
                       ),
                     )}
               </Typography>
             </Box>
+            {/* <Divider sx={{ marginBlock: 5 }} /> */}
+            {/* <Box sx={{ justifyContent: "space-between", display: "flex" }}>
+              <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                Processing Fee / 手数料:
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                {format_jpy(Math.round(Number(tax) * 0.4) || 0)}
+              </Typography>
+            </Box>
+            <Box sx={{ justifyContent: "space-between", display: "flex" }}>
+              <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                Refund Amount / 払戻金額:
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                {format_jpy(Number(tax) - Math.round(Number(tax) * 0.4)) || 0}
+              </Typography>
+            </Box> */}
           </Box>
         </Box>
-
         <Box sx={{ textAlign: "center" }}>
           <Button
             variant="contained"
             sx={{
               width: { xs: "100%", sm: "50%" },
-              bgcolor: colors.darkBlue,
+              bgcolor: `${colors.darkBlue}`,
               borderRadius: 3,
               textTransform: "none",
               minHeight: "120px",
             }}
-            onClick={() => setActiveStep(1)}
+            onClick={() => {
+              onNext();
+            }}
             disabled={orderData.generalTotal === ""}
           >
-            <Typography variant="h5" sx={{ color: colors.white, fontWeight: "bold" }}>
+            <Typography
+              variant="h5"
+              sx={{ color: colors.white, fontWeight: "bold" }}
+            >
               {t("next")}
             </Typography>
           </Button>
