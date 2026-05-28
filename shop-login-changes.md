@@ -1,7 +1,7 @@
 # Shop Dashboard Login — Change Log
 **Feature:** Shop-level access to the Dashboard  
 **Date:** 2026-05-27  
-**Author:** Dashboard Team  
+**Author:** GURUNG NAVIN
 
 ---
 
