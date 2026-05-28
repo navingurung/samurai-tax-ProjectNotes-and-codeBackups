@@ -10,7 +10,7 @@
 Currently the Dashboard only supports company login (`/auth/company-token`).  
 This feature adds shop-level login so individual shop staff can log in and view **only their own shop's data**.
 
-The `shops` table already has `login_id` and `login_password` fields (used by the Shop POS App on Backend :8000).  
+The `shops` table already has `login_id` and `login_password` fields (used by the Shop POS App on samurai-tax-free-backend :8000).  
 We reuse the same credentials — no new DB columns or tables needed.
 
 **Role hierarchy:**
