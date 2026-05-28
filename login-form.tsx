@@ -22,9 +22,92 @@ interface FormPanelProps {
   setLoginType: (v: "company" | "shop") => void;
 }
 
+// [CHANGED] FormPanel now has white background — form labels and inputs are dark colored
 function FormPanel({ isShop, loginInfo, setLoginInfo, loading, onClickLogin, setLoginType }: FormPanelProps) {
   return (
-    <div className="flex flex-col justify-center h-full px-8 py-10 bg-[#164d86] relative overflow-hidden min-h-[420px]">
+    <div className="flex flex-col justify-center h-full px-8 py-10 bg-white relative overflow-hidden min-h-[420px]">
+
+      <div className="relative z-10 flex flex-col gap-5">
+
+        {/* Mobile only toggle */}
+        <div className="flex md:hidden rounded-lg border border-gray-200 p-1 gap-1">
+          <button
+            type="button"
+            onClick={() => setLoginType("shop")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              isShop ? "bg-[#164d86] text-white" : "text-gray-500 hover:text-gray-900"
+            )}
+          >
+            店舗
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginType("company")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              !isShop ? "bg-[#164d86] text-white" : "text-gray-500 hover:text-gray-900"
+            )}
+          >
+            会社
+          </button>
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold text-[#164d86]">
+            {isShop ? "店舗" : "管理者"}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {isShop ? "店舗IDとパスワードを入力してください" : "メールアドレスとパスワードを入力してください"}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              {isShop ? "ID" : "メールアドレス"}
+            </label>
+            <Input
+              type={isShop ? "text" : "email"}
+              placeholder={isShop ? "店舗ID" : "m@example.com"}
+              value={loginInfo.login_id}
+              onChange={(e) => setLoginInfo({ ...loginInfo, login_id: e.target.value })}
+              className="h-11 border-gray-200"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">パスワード</label>
+            <Input
+              type="password"
+              value={loginInfo.login_password}
+              onChange={(e) => setLoginInfo({ ...loginInfo, login_password: e.target.value })}
+              className="h-11 border-gray-200"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={onClickLogin}
+          disabled={loading}
+          className="w-full h-11 bg-[#164d86] hover:bg-[#1d69ba] disabled:opacity-60 text-white font-semibold rounded-lg transition-colors flex items-center justify-center"
+        >
+          {loading ? <Spinner className="h-4 w-4" /> : "ログイン"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface BrandPanelProps {
+  isShop: boolean;
+  handleSwitch: () => void;
+}
+
+// [CHANGED] BrandPanel now has blue background with animated blobs — use white logo here
+function BrandPanel({ isShop, handleSwitch }: BrandPanelProps) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full px-8 py-10 bg-[#164d86] relative overflow-hidden min-h-[420px]">
 
       {/* Animated blob shapes */}
       <motion.div
@@ -58,102 +141,24 @@ function FormPanel({ isShop, loginInfo, setLoginInfo, loading, onClickLogin, set
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 3 }}
       />
 
-      <div className="relative z-10 flex flex-col gap-5">
-
-        {/* Mobile only toggle */}
-        <div className="flex md:hidden rounded-lg border border-white/30 p-1 gap-1">
-          <button
-            type="button"
-            onClick={() => setLoginType("shop")}
-            className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              isShop ? "bg-white text-[#164d86]" : "text-white/70 hover:text-white"
-            )}
-          >
-            店舗
-          </button>
-          <button
-            type="button"
-            onClick={() => setLoginType("company")}
-            className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              !isShop ? "bg-white text-[#164d86]" : "text-white/70 hover:text-white"
-            )}
-          >
-            会社
-          </button>
-        </div>
-
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center gap-6 w-full">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white">
-            {isShop ? "店舗" : "管理者"}
-          </h2>
-          <p className="text-sm text-blue-200 mt-1">
-            {isShop ? "店舗IDとパスワードを入力してください" : "メールアドレスとパスワードを入力してください"}
-          </p>
+          <h1 className="text-2xl font-bold text-white">ようこそ</h1>
+          <p className="text-sm text-blue-200 mt-1">SAMURAI TAX Dashboard</p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-blue-100">
-              {isShop ? "ID" : "メールアドレス"}
-            </label>
-            <Input
-              type={isShop ? "text" : "email"}
-              placeholder={isShop ? "店舗ID" : "m@example.com"}
-              value={loginInfo.login_id}
-              onChange={(e) => setLoginInfo({ ...loginInfo, login_id: e.target.value })}
-              className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-blue-100">パスワード</label>
-            <Input
-              type="password"
-              value={loginInfo.login_password}
-              onChange={(e) => setLoginInfo({ ...loginInfo, login_password: e.target.value })}
-              className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={onClickLogin}
-          disabled={loading}
-          className="w-full h-11 bg-white hover:bg-blue-50 disabled:opacity-60 text-[#164d86] font-semibold rounded-lg transition-colors flex items-center justify-center"
-        >
-          {loading ? <Spinner className="h-4 w-4" /> : "ログイン"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-interface BrandPanelProps {
-  isShop: boolean;
-  handleSwitch: () => void;
-}
-
-function BrandPanel({ isShop, handleSwitch }: BrandPanelProps) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full px-8 py-10 bg-white min-h-[420px]">
-      <div className="flex flex-col items-center gap-6 w-full">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#164d86]">ようこそ</h1>
-          <p className="text-sm text-gray-500 mt-1">SAMURAI TAX Dashboard</p>
-        </div>
-
+        {/* White logo — replace filename if different */}
         <img
-          src="/SAMURAI TAX_Logo_header.png"
+          src="/SAMURAI_TAX_Logo_white.png"
           alt="SAMURAI TAX"
-          className="w-80 h-14 object-cover"
+          className="w-80 m-auto object-contain"
         />
 
         <button
           type="button"
           onClick={handleSwitch}
-          className="border-2 border-[#164d86] text-[#164d86] px-8 py-2.5 rounded-lg font-semibold hover:bg-[#164d86] hover:text-white transition-all duration-200 w-full"
+          className="border-2 border-white text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-white hover:text-[#164d86] transition-all duration-200 w-full"
         >
           {isShop ? "管理者の方はこちら" : "店舗の方はこちら"}
         </button>
@@ -299,4 +304,3 @@ export function LoginForm({
     </div>
   );
 }
-
