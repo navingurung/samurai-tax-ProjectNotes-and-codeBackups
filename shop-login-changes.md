@@ -89,6 +89,7 @@ def create_access_token_for_shop(
 #### 5. New function `get_current_shop_from_cookie`
 ```python
 async def get_current_shop_from_cookie(sat: str = Cookie(None)):
+
     ...
 ```
 **Reason:** FastAPI dependency that reads and validates the `sat` cookie. Used to protect shop-only endpoints.
@@ -101,8 +102,46 @@ async def get_current_company_or_shop_from_cookie(
     cat: str = Cookie(None),
     sat: str = Cookie(None),
 ):
-    # tries cat (company) first, then sat (shop)
-    # returns dict with "type": "company" or "type": "shop"
+    # try company token first (cat cookie)
+    if cat:
+        try:
+            payload = jwt.decode(cat, SECRET_KEY, algorithms=[ALGORITHM])
+            login_id: str = payload.get("sub")
+            company_id: int = payload.get("id")
+            name: str = payload.get("name")
+            if login_id and company_id and name:
+                return {
+                    "type": "company",
+                    "login_id": login_id,
+                    "company_id": company_id,
+                    "name": name,
+                }
+        except jwt.JWTError:
+            pass
+
+    # try shop token (sat cookie)
+    if sat:
+        try:
+            payload = jwt.decode(sat, SECRET_KEY, algorithms=[ALGORITHM])
+            login_id: str = payload.get("sub")
+            shop_id: int = payload.get("id")
+            shop_name: str = payload.get("name")
+            company_id: int = payload.get("company_id")
+            if login_id and shop_id and shop_name:
+                return {
+                    "type": "shop",
+                    "login_id": login_id,
+                    "shop_id": shop_id,
+                    "company_id": company_id,
+                    "name": shop_name,
+                }
+        except jwt.JWTError:
+            pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
 ```
 **Reason:** Some endpoints (like `/refundlist/transactions-by-date/`) need to be accessible by BOTH company and shop login. This dependency accepts either cookie and returns the caller's identity with a `type` field so the endpoint knows who is calling.  
 **Important:** This must be defined AFTER `get_current_shop_from_cookie`.
@@ -112,7 +151,37 @@ async def get_current_company_or_shop_from_cookie(
 #### 7. New endpoint `POST /auth/shop-token`
 ```python
 @router.post("/shop-token", response_model=ShopToken)
-async def shop_login_for_access_token(...):
+async def shop_login_for_access_token(
+    response: Response,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+):
+    shop = authenticate_shop(form_data.username, form_data.password, session)
+    if not shop:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+    token = create_access_token_for_shop(
+        shop.login_id,
+        shop.id,
+        shop.shop_name,
+        shop.company_id,
+        expires_delta=timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS),
+    )
+    response.set_cookie(
+        key="sat",
+        value=token,
+        httponly=True,
+        secure=SECURE,
+        samesite=SAMESITE,
+        path="/",
+        max_age=ACCESS_TOKEN_EXPIRE_HOURS * 60 * 60,
+    )
+    return {
+        "shop_id": shop.id,
+        "shop_name": shop.shop_name,
+        "company_id": shop.company_id,
+    }
+
 ```
 **Reason:** Shop login endpoint. Accepts `username` + `password` (OAuth2 form), authenticates against `shops` table, sets `sat` httpOnly cookie, returns `shop_id`, `shop_name`, `company_id`.
 
@@ -123,6 +192,7 @@ async def shop_login_for_access_token(...):
 @router.post("/shop-logout")
 async def shop_logout(response: Response):
     response.delete_cookie(key="sat", path="/")
+    return {"message": "Logged out successfully"}
 ```
 **Reason:** Clears the `sat` cookie on logout.
 
