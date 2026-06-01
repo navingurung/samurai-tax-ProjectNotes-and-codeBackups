@@ -74,4 +74,6 @@ Go to the **「Scope」** tab and enable:
 - `pos.products:read`
 - `pos.stores:read`
 
+<img width="1903" height="857" alt="Screenshot 2026-06-01 at 16 01 44" src="https://github.com/user-attachments/assets/97cfbceb-1713-464d-b204-d2bf7aec6846" />
+
 ---
