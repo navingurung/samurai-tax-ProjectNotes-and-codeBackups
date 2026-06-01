@@ -34,7 +34,9 @@ Click **「New registration」** and fill in Basic Information:
 | **Icon** | Upload any image (512×512px, max 1MB) |
  
 Click **「Register」** to save.
- 
+
+<img width="1778" height="858" alt="Screenshot 2026-06-01 at 15 42 11" src="https://github.com/user-attachments/assets/bccf2326-a051-45ad-aa6a-1a11bb95db42" />
+
 ---
  
 ## Step 4 — Environment Settings
