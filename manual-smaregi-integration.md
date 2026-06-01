@@ -38,80 +38,40 @@ Click **「Register」** to save.
 <img width="1778" height="858" alt="Screenshot 2026-06-01 at 15 42 11" src="https://github.com/user-attachments/assets/bccf2326-a051-45ad-aa6a-1a11bb95db42" />
 
 ---
- 
-## Step 4 — Environment Settings
- 
-After registering, go to the **「Environment settings」** tab.
- 
-### 4.1 Fill in the required fields
- 
-| Field | Value |
-|-------|-------|
-| **App URL** | Your ngrok URL (e.g. `https://abc123.ngrok-free.app`) |
-| **URL of user contract notification destination** | Your ngrok URL + `/contract` (e.g. `https://abc123.ngrok-free.app/contract`) |
-| **Webhook destination endpoint** | Leave blank for now — fill after FastAPI is running |
-| **Redirect URI** | Leave as is (`urn:ietf:wg:oauth:2.0:oob`) |
 
+## Step 4 — Environment Settings ⏭ SKIP FOR NOW
+
+> ⚠️ Come back to this step **after Step 9**.
+>
+> Smaregi does **not accept** `localhost` or private IP addresses in this form.
+> You need a real public URL from ngrok before filling this in.
+
+Fields to fill later:
 <img width="1692" height="831" alt="Screenshot 2026-06-01 at 15 19 57" src="https://github.com/user-attachments/assets/027e6dae-caeb-49cf-8951-8501d6ab9163" />
 
-> ⚠️ **Important:** Fields 1 and 2 do not accept `localhost` or private IP addresses.
-> You must have ngrok running before filling these in.
-> See **ngrok Setup** section below.
- 
-### 4.2 Save your credentials
- 
-| Credential | Where to Find | Action |
-|------------|--------------|--------|
-| **Client ID** | Environment settings page | Copy and save |
-| **Client Secret** | Environment settings page, click 👁 to reveal | Copy immediately — shown only once |
-| **Contract ID** | Top-left of dashboard (format: `sb_xxxx`) | Copy and save |
- 
-> ⚠️ **Client Secret is shown only once.** If you miss it, you must reissue it — which invalidates the old one.
- 
+| Field | Value |
+|-------|-------|
+| **App URL** | ngrok URL (e.g. `https://abc123.ngrok-free.app`) |
+| **URL of user contract notification destination** | ngrok URL + `/contract` |
+| **Webhook destination endpoint** | Fill in Step 11 |
+| **Redirect URI** | Leave as is (`urn:ietf:wg:oauth:2.0:oob`) |
+
+Also save these credentials from this page:
+
+| Credential | Note |
+|------------|------|
+| **Client ID** | Copy and save |
+| **Client Secret** | Click 👁 to reveal — shown only once, copy immediately |
+| **Contract ID** | Top-left of dashboard (`sb_xxxx`) |
+
 ---
- 
-## ngrok Setup
- 
-ngrok gives your local server a public URL so Smaregi can reach it.
- 
-```
-Your Laptop (localhost:8000)
-        ↕  tunnel
-ngrok (public URL)
-        ↕  internet
-Smaregi Cloud (webhook push)
-```
- 
-### Install ngrok
- 
-```bash
-# macOS
-brew install ngrok
- 
-# Or download from https://ngrok.com
-```
- 
-### Run ngrok
- 
-```bash
-ngrok http 8000
-```
- 
-You will see output like:
- 
-```
-Forwarding  https://abc123.ngrok-free.app → localhost:8000
-```
- 
-Use `https://abc123.ngrok-free.app` as your base URL in Smaregi Environment Settings.
- 
-> ⚠️ ngrok is only needed for **local development**.
-> In production, your deployed server already has a public URL — no ngrok needed.
- 
+
+## Step 5 — Set Scopes ✅
+
+Go to the **「Scope」** tab and enable:
+
+- `pos.transactions:read`
+- `pos.products:read`
+- `pos.stores:read`
+
 ---
- 
-## Next Steps
- 
-- [ ] Step 5 — Set Scopes
-- [ ] Step 6 — Start FastAPI backend
-- [ ] Step 7 — Set Webhook URL after ngrok is running
