@@ -15,7 +15,8 @@ Go to [https://developers.smaregi.dev/](https://developers.smaregi.dev/) and log
 ## Step 2 — Navigate to Private App
  
 On the left sidebar:
- 
+<img width="1877" height="960" alt="Screenshot 2026-06-01 at 15 39 09" src="https://github.com/user-attachments/assets/66a14c8c-3a8d-4ae5-9035-caf351ef8b2c" />
+
 ```
 Application → Private App
 ```
