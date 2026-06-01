@@ -51,7 +51,9 @@ After registering, go to the **「Environment settings」** tab.
 | **URL of user contract notification destination** | Your ngrok URL + `/contract` (e.g. `https://abc123.ngrok-free.app/contract`) |
 | **Webhook destination endpoint** | Leave blank for now — fill after FastAPI is running |
 | **Redirect URI** | Leave as is (`urn:ietf:wg:oauth:2.0:oob`) |
- 
+
+ <img width="1778" height="858" alt="Screenshot 2026-06-01 at 15 42 11" src="https://github.com/user-attachments/assets/1b9362e5-90e0-406f-8f84-de4271a56655" />
+
 > ⚠️ **Important:** Fields 1 and 2 do not accept `localhost` or private IP addresses.
 > You must have ngrok running before filling these in.
 > See **ngrok Setup** section below.
