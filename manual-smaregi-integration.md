@@ -52,7 +52,7 @@ After registering, go to the **「Environment settings」** tab.
 | **Webhook destination endpoint** | Leave blank for now — fill after FastAPI is running |
 | **Redirect URI** | Leave as is (`urn:ietf:wg:oauth:2.0:oob`) |
 
- <img width="1778" height="858" alt="Screenshot 2026-06-01 at 15 42 11" src="https://github.com/user-attachments/assets/1b9362e5-90e0-406f-8f84-de4271a56655" />
+<img width="1692" height="831" alt="Screenshot 2026-06-01 at 15 19 57" src="https://github.com/user-attachments/assets/027e6dae-caeb-49cf-8951-8501d6ab9163" />
 
 > ⚠️ **Important:** Fields 1 and 2 do not accept `localhost` or private IP addresses.
 > You must have ngrok running before filling these in.
