@@ -43,5 +43,11 @@ def square_oauth_callback(
             url=f"{DASHBOARD_FRONTEND_URL}/account", status_code=302
         )
 
+
+ # redirect先は、フロントに合わせて変更
+    return RedirectResponse(
+        url=f"{DASHBOARD_FRONTEND_URL}/account",
+        status_code=302,
+    )
 ```
 
