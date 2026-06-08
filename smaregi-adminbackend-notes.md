@@ -189,9 +189,3 @@ use_smaregi      = true
 ```
 
 ---
-
-## 8. Tomorrow's Plan
-
-- **Admin Frontend** — Add UI for Smaregi connection (input, switch, button)
-- **samurai-tax-backend** — Webhook receiver + SSE + transaction fetching
-- **Store Frontend** — Real-time transaction display using SSE
