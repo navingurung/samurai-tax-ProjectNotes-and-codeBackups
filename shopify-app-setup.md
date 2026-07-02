@@ -13,3 +13,7 @@ flowchart TD
     H --> I["Merchant OAuth Allow\ntoken saved to DB"]
     I --> J["App + POS tile live on merchant store"]
 ```
+
+
+
+<img width="1272" height="998" alt="Screenshot 2026-07-02 at 22 40 36" src="https://github.com/user-attachments/assets/977de41d-105d-4394-94d9-82f7d193d944" />
