@@ -16,4 +16,4 @@ flowchart TD
 
 
 
-<img width="1272" height="998" alt="Screenshot 2026-07-02 at 22 40 36" src="https://github.com/user-attachments/assets/977de41d-105d-4394-94d9-82f7d193d944" />
+<img width="1280" height="754" alt="Screenshot 2026-07-02 at 22 45 00" src="https://github.com/user-attachments/assets/ed53f8ee-3256-406b-a9b5-24cacd47829c" />
