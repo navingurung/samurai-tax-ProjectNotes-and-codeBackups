@@ -22,6 +22,12 @@ revision → make a new migration
 -m → the name
 ```
 
+## Note: Dont use --autogenerate, if then the results below will happen. If used already then it is Okay to delete with 
+```bash
+rm alembic/versions/0e8e3550cbdc_add_shopify_stores_table.py
+```
+- rm with file name.
+
 ### Result:
 
 ```bash
@@ -76,6 +82,14 @@ INFO  [alembic.autogenerate.compare] Detected removed foreign key (shop_id)(id) 
 INFO  [alembic.autogenerate.compare] Detected added foreign key (shop_id)(id) on table store_hours
 
  Generating /Users/taimatsu/Documents/STORE/taimatsu-tax-free-backend/alembic/versions/0e8e3550cbdc_add_shopify_stores_table.py ...  done
+```
+
+### Create empty migration without `--autogenerate`
+
+```bash
+// Example
+((venv) ) ➜  taimatsu-tax-free-backend git:(staging) ✗ alembic revision -m "add shopify_stores table"
+  Generating /Users/taimatsu/Documents/STORE/taimatsu-tax-free-backend/alembic/versions/bb9482d4a403_add_shopify_stores_table.py ...  done
 ```
 
 
