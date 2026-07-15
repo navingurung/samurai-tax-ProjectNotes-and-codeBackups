@@ -1,4 +1,12 @@
-models.py → create empty migration file  → push on git → review → merge → migration code start
+1. models.py — update schema
+2. alembic revision -m "..." — create empty migration file
+3. Write upgrade() / downgrade() by hand
+4. Git push → PR
+5. Team review → approval
+6. Merge to staging
+7. alembic upgrade head — run migration(locally)
+
+
 ### 1. Update models.py
 
 ### 2. Before generating, confirm you're on the latest head:
