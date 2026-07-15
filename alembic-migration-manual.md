@@ -1,3 +1,4 @@
+models.py → create empty migration file  → push on git → review → merge → migration code start
 ### 1. Update models.py
 
 ### 2. Before generating, confirm you're on the latest head:
